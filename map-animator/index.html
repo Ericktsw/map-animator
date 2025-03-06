@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Animator</title>
+    
+    <!-- Bibliotecas Externas -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- CSS do Aplicativo -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Barra de ferramentas -->
+        <div class="toolbar">
+            <div class="tool-group">
+                <button id="add-keyframe-btn" title="Adicionar Keyframe">
+                    <i class="fas fa-key"></i>
+                </button>
+                <button id="add-line-btn" title="Adicionar Linha">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="add-polygon-btn" title="Adicionar Polígono">
+                    <i class="fas fa-draw-polygon"></i>
+                </button>
+                <button id="add-text-btn" title="Adicionar Texto">
+                    <i class="fas fa-font"></i>
+                </button>
+                <button id="add-country-btn" title="Adicionar País">
+                    <i class="fas fa-globe"></i>
+                </button>
+                <div class="country-search hidden">
+                    <input type="text" id="country-search-input" placeholder="Buscar país...">
+                    <div id="country-results" class="country-results"></div>
+                </div>
+                <button id="import-geojson-btn" title="Importar GeoJSON">
+                    <i class="fas fa-file-import"></i>
+                </button>
+                <input type="file" id="geojson-input" accept=".geojson,.json" style="display: none;">
+            </div>
+            
+            <div class="tool-group">
+                <button id="edit-btn" title="Editar Camada" class="mode-btn">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button id="delete-btn" title="Excluir Camada" class="mode-btn">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <div class="separator"></div>
+                <button id="play-btn" title="Reproduzir">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button id="stop-btn" title="Parar">
+                    <i class="fas fa-stop"></i>
+                </button>
+                <button id="export-btn" title="Exportar Vídeo">
+                    <i class="fas fa-file-export"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Container do Mapa -->
+        <div id="map-container"></div>
+        
+        <!-- Painel de Propriedades -->
+        <div class="properties-panel">
+            <h3>Propriedades</h3>
+            <div id="layer-properties" class="property-group">
+                <h4>Camada Selecionada</h4>
+                <div class="property">
+                    <label for="layer-color">Cor:</label>
+                    <input type="color" id="layer-color" value="#3388ff">
+                </div>
+                <div class="property">
+                    <label for="layer-opacity">Opacidade:</label>
+                    <input type="range" id="layer-opacity" min="0" max="1" step="0.1" value="1">
+                </div>
+                <div class="property">
+                    <label for="layer-weight">Espessura:</label>
+                    <input type="range" id="layer-weight" min="1" max="10" value="3">
+                </div>
+                
+                <!-- Propriedades específicas para texto -->
+                <div id="text-properties" class="text-properties hidden">
+                    <div class="property">
+                        <label for="text-content">Texto:</label>
+                        <input type="text" id="text-content" value="Texto">
+                    </div>
+                    <div class="property">
+                        <label for="text-size">Tamanho:</label>
+                        <input type="range" id="text-size" min="10" max="50" value="20">
+                    </div>
+                    <div class="property">
+                        <label for="text-bold">Negrito:</label>
+                        <input type="checkbox" id="text-bold">
+                    </div>
+                    <div class="property">
+                        <label for="text-italic">Itálico:</label>
+                        <input type="checkbox" id="text-italic">
+                    </div>
+                    <div class="property">
+                        <label for="text-align">Alinhamento:</label>
+                        <select id="text-align">
+                            <option value="left">Esquerda</option>
+                            <option value="center" selected>Centro</option>
+                            <option value="right">Direita</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="property animation-timing">
+                    <label>Tempo de Animação:</label>
+                    <div class="timing-inputs">
+                        <input type="number" id="anim-start" min="0" max="15" step="0.1" value="0"> s
+                        <span>até</span>
+                        <input type="number" id="anim-end" min="0" max="15" step="0.1" value="5"> s
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Timeline de animação -->
+        <div class="timeline-container">
+            <div class="timeline-controls">
+                <span id="current-time">0.0s</span>
+                <div class="timeline-zoom-controls">
+                    <button id="zoom-in"><i class="fas fa-plus"></i></button>
+                    <button id="zoom-out"><i class="fas fa-minus"></i></button>
+                </div>
+            </div>
+            <div class="timeline">
+                <div class="timeline-ruler">
+                    <!-- Marcadores de tempo serão adicionados via JS -->
+                </div>
+                <div class="timeline-tracks">
+                    <div class="keyframes-track">
+                        <!-- Keyframes serão adicionados aqui -->
+                    </div>
+                    <div class="layers-track">
+                        <!-- Camadas e suas animações serão mostradas aqui -->
+                    </div>
+                </div>
+                <div class="playhead"></div>
+            </div>
+        </div>
+        
+        <!-- Diálogo de Exportação -->
+        <div id="export-dialog" class="dialog hidden">
+            <div class="dialog-header">
+                <h3>Exportar Animação</h3>
+                <button class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="dialog-content">
+                <div class="export-options">
+                    <div class="export-option">
+                        <label for="export-width">Largura:</label>
+                        <input type="number" id="export-width" value="1280">
+                    </div>
+                    <div class="export-option">
+                        <label for="export-height">Altura:</label>
+                        <input type="number" id="export-height" value="720">
+                    </div>
+                    <div class="export-option">
+                        <label for="export-fps">FPS:</label>
+                        <input type="number" id="export-fps" value="30">
+                    </div>
+                    <div class="export-option">
+                        <label for="export-format">Formato:</label>
+                        <select id="export-format">
+                            <option value="mp4">MP4</option>
+                            <option value="webm">WebM</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="export-progress hidden">
+                    <p>Exportando: <span id="export-status">0%</span></p>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+                <div class="dialog-buttons">
+                    <button id="start-export-btn" class="primary-btn">Exportar</button>
+                    <button class="cancel-btn">Cancelar</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Diálogo de Texto -->
+        <div id="text-dialog" class="dialog hidden">
+            <div class="dialog-header">
+                <h3>Adicionar Texto</h3>
+                <button class="close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="dialog-content">
+                <div class="property">
+                    <label for="new-text-content">Texto:</label>
+                    <input type="text" id="new-text-content" value="Meu texto">
+                </div>
+                <div class="dialog-buttons">
+                    <button id="add-text-confirm-btn" class="primary-btn">Adicionar</button>
+                    <button class="cancel-btn">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts Externos -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    
+    <!-- Scripts do Aplicativo -->
+    <script src="js/map.js"></script>
+    <script src="js/timeline.js"></script>
+    <script src="js/keyframes.js"></script>
+    <script src="js/layers.js"></script>
+    <script src="js/countries.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
